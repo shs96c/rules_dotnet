@@ -143,12 +143,19 @@ def build_binary(ctx, compile_action):
     if depsjson != None:
         direct_runfiles.append(depsjson)
 
+    runfiles = ctx.runfiles(
+        files = direct_runfiles,
+        transitive_files = depset(transitive = [result.transitive_libs, result.transitive_native, result.transitive_data]),
+    )
+
+    for d in ctx.attr.data:
+        if not DefaultInfo in d:
+            continue
+        runfiles = runfiles.merge(d[DefaultInfo].default_runfiles)
+
     default_info = DefaultInfo(
         executable = launcher,
-        runfiles = ctx.runfiles(
-            files = direct_runfiles,
-            transitive_files = depset(transitive = [result.transitive_libs, result.transitive_native, result.transitive_data]),
-        ),
+        runfiles = runfiles,
         files = depset(default_info_files),
     )
 
