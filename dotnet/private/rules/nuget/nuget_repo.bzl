@@ -1,9 +1,7 @@
 "NuGet Repo"
 
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
-load("@rules_dotnet//dotnet/private/rules/nuget:nuget_archive.bzl", "nuget_archive")
-
-_GLOBAL_NUGET_PREFIX = "nuget"
+load("@rules_dotnet//dotnet/private/rules/nuget:nuget_archive.bzl", "GLOBAL_NUGET_PREFIX", "nuget_archive")
 
 def _nuget_repo_impl(ctx):
     for package in ctx.attr.packages:
@@ -22,8 +20,15 @@ def _nuget_repo_impl(ctx):
         targeting_pack_overrides = ctx.attr.targeting_pack_overrides[name.lower()]
         template = Label("@rules_dotnet//dotnet/private/rules/nuget:template.BUILD")
 
+        nupkg_path = "@{PREFIX}.{NAME_LOWER}.v{VERSION}//:{NAME_LOWER}.{VERSION}.nupkg".format(
+            PREFIX = GLOBAL_NUGET_PREFIX,
+            NAME = name,
+            NAME_LOWER = name.lower(),
+            VERSION = version,
+        )
+
         ctx.template("{}/{}/BUILD.bazel".format(name.lower(), version), template, {
-            "{PREFIX}": _GLOBAL_NUGET_PREFIX,
+            "{PREFIX}": GLOBAL_NUGET_PREFIX,
             "{NAME}": name,
             "{NAME_LOWER}": name.lower(),
             "{VERSION}": version,
@@ -36,7 +41,7 @@ def _nuget_repo_impl(ctx):
         ctx.file("{}/BUILD.bazel".format(name.lower()), r"""package(default_visibility = ["//visibility:public"])
 alias(name = "{name}", actual = "//{name}/{version}")
 alias(name = "content_files", actual = "@{prefix}.{name}.v{version}//:content_files")
-""".format(prefix = _GLOBAL_NUGET_PREFIX, name = name.lower(), version = version))
+""".format(prefix = GLOBAL_NUGET_PREFIX, name = name.lower(), version = version))
 
 _nuget_repo = repository_rule(
     _nuget_repo_impl,
@@ -63,7 +68,7 @@ def nuget_repo(name, packages):
         # maybe another nuget_repo has the same nuget package dependency
         maybe(
             nuget_archive,
-            name = "{}.{}.v{}".format(_GLOBAL_NUGET_PREFIX, package_name, version),
+            name = "{}.{}.v{}".format(GLOBAL_NUGET_PREFIX, package_name, version),
             sources = package["sources"],
             netrc = package.get("netrc", None),
             id = package_name,

@@ -19,6 +19,8 @@ load(
     "RUNTIME_GRAPH",
 )
 
+GLOBAL_NUGET_PREFIX = "nuget"
+
 def _is_windows(repository_ctx):
     """Returns true if the host operating system is windows."""
     os_name = repository_ctx.os.name.lower()
@@ -321,7 +323,17 @@ def _nuget_archive_impl(ctx):
 
     # Then get the auth dict for the package base urls
     auth = _get_auth_dict(ctx, ctx.attr.netrc, urls)
-    ctx.download_and_extract(urls, type = "zip", integrity = ctx.attr.sha512, auth = auth)
+    file_name = "%s.zip" % ctx.name
+    nupkg_name = "%s.%s.nupkg" % (ctx.attr.id, ctx.attr.version)
+    names = [nupkg_name]
+    if nupkg_name.startswith(GLOBAL_NUGET_PREFIX):
+        nupkg_name = nupkg_name[len(GLOBAL_NUGET_PREFIX) + 1:]
+        names.append(nupkg_name)
+
+    ctx.download(urls, output = file_name, integrity = ctx.attr.sha512, auth = auth)
+    ctx.extract(archive = file_name)
+    for name in names:
+        ctx.symlink(file_name, name)
 
     files = _read_dir(ctx, ".").replace(str(ctx.path(".")) + "/", "").splitlines()
 
@@ -447,6 +459,7 @@ load("@rules_dotnet//dotnet/private/rules/nuget:nuget_archive.bzl", "tfm_filegro
         "filegroup(name = \"data\", srcs = [])",
         _create_rid_native_select("native", native) or "filegroup(name = \"native\", srcs = [])",
         "filegroup(name = \"content_files\", srcs = [%s])" % ",".join(["\n  \"%s\"" % a for a in groups.get("contentFiles")["any"]]),
+        "exports_files([\"%s\"])" % nupkg_name,
     ]))
 
 nuget_archive = repository_rule(

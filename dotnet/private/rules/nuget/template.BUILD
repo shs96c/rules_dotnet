@@ -16,4 +16,5 @@ import_library(
     deps = select({
         {DEPS},
     }),
+    nupkg = "@{PREFIX}.{NAME_LOWER}.v{VERSION}//:{NAME_LOWER}.{VERSION}.nupkg"
 )
