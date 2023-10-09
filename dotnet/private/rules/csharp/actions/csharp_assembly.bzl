@@ -145,7 +145,7 @@ def AssemblyAction(
 
     defines = framework_preprocessor_symbols(target_framework) + defines
 
-    out_dir = "bazelout/" + target_framework
+    out_dir = "bazelout/%s/%s" % (target_framework, target_name)
     out_ext = "dll"
 
     out_dll = actions.declare_file("%s/%s.%s" % (out_dir, assembly_name, out_ext))

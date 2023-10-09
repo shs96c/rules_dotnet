@@ -14,11 +14,12 @@ load(
 )
 load("//dotnet/private:providers.bzl", "DotnetBinaryInfo")
 
-def _create_shim_exe(ctx, dll):
+def _create_shim_exe(ctx, tfm, dll):
     windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
 
     apphost = ctx.toolchains["@rules_dotnet//dotnet:toolchain_type"].apphost
-    output = ctx.actions.declare_file(paths.replace_extension(dll.basename, ".exe" if ctx.target_platform_has_constraint(windows_constraint) else ""), sibling = dll)
+
+    output = ctx.actions.declare_file("bazelout/%s/%s/%s" % (tfm, ctx.attr.name, paths.replace_extension(dll.basename, ".exe" if ctx.target_platform_has_constraint(windows_constraint) else "")))
 
     ctx.actions.run(
         executable = ctx.attr.apphost_shimmer.files_to_run,
@@ -88,7 +89,7 @@ def build_binary(ctx, compile_action):
 
     app_host = None
     if ctx.attr.apphost_shimmer:
-        app_host = _create_shim_exe(ctx, dll)
+        app_host = _create_shim_exe(ctx, tfm, dll)
         direct_runfiles.append(app_host)
         default_info_files = default_info_files.append(app_host)
 
@@ -98,7 +99,7 @@ def build_binary(ctx, compile_action):
     depsjson = None
     if is_core_framework(tfm):
         # Create the runtimeconfig.json for the binary
-        runtimeconfig = ctx.actions.declare_file("bazelout/%s/%s.runtimeconfig.json" % (tfm, ctx.attr.out or ctx.attr.name))
+        runtimeconfig = ctx.actions.declare_file("bazelout/%s/%s/%s.runtimeconfig.json" % (tfm, ctx.attr.name, ctx.attr.out or ctx.attr.name))
         runtimeconfig_struct = generate_runtimeconfig(
             target_framework = tfm,
             project_sdk = ctx.attr.project_sdk,
@@ -114,6 +115,8 @@ def build_binary(ctx, compile_action):
             "./external",
             "../",
             "../external",
+            "../../",
+            "../../external",
             # This one is for when the binary target is used as an tool in e.g. a custom rule
             "{}.runfiles".format(launcher.path),
         ]
@@ -122,7 +125,7 @@ def build_binary(ctx, compile_action):
             content = json.encode_indent(runtimeconfig_struct),
         )
 
-        depsjson = ctx.actions.declare_file("bazelout/%s/%s.deps.json" % (tfm, ctx.attr.out or ctx.attr.name))
+        depsjson = ctx.actions.declare_file("bazelout/%s/%s/%s.deps.json" % (tfm, ctx.attr.name, ctx.attr.out or ctx.attr.name))
         depsjson_struct = generate_depsjson(
             ctx,
             target_framework = tfm,
